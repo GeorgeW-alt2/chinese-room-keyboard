@@ -1,6 +1,6 @@
 import random
 import math
-from typing import List, Tuple, Set
+from typing import List, Tuple
 import os
 from PIL import Image, ImageDraw
 import hashlib
@@ -15,16 +15,11 @@ class SymbolGenerator:
         self.generated_hashes = set()
         
     def _get_symbol_hash(self, image: Image.Image) -> str:
-        """Generate a hash for the symbol to check uniqueness."""
-        # Convert to numpy array and normalize
         img_array = np.array(image)
-        # Resize to smaller dimension for faster comparison while maintaining distinctiveness
         img_small = Image.fromarray(img_array).resize((50, 50))
-        # Convert to bytes and hash
         return hashlib.md5(np.array(img_small).tobytes()).hexdigest()
 
     def _is_unique(self, image: Image.Image) -> bool:
-        """Check if the symbol is unique compared to previously generated ones."""
         symbol_hash = self._get_symbol_hash(image)
         if symbol_hash in self.generated_hashes:
             return False
@@ -32,188 +27,185 @@ class SymbolGenerator:
         return True
 
     def _generate_base_shape(self) -> List[Tuple[float, float]]:
-        """Generate base shape type with additional variation parameters."""
         shape_type = random.choice([
-            self._generate_star,
-            self._generate_polygon,
-            self._generate_spiral,
-            self._generate_cross,
-            self._generate_wave_circle,
-            self._generate_diamond_pattern,
-            self._generate_zigzag
+            self._generate_calligraphic_stroke,
+            self._generate_radical,
+            self._generate_flowing_curve,
+            self._generate_glyph_structure,
+            self._generate_logographic,
+            self._generate_pictographic
         ])
         return shape_type()
     
-    def _generate_star(self) -> List[Tuple[float, float]]:
+    def _generate_calligraphic_stroke(self) -> List[Tuple[float, float]]:
+        """Generate a stroke that looks like calligraphy."""
         points = []
-        num_points = random.randint(4, 9)
-        inner_radius = self.effective_size * random.uniform(0.1, 0.2)
-        outer_radius = self.effective_size * random.uniform(0.35, 0.45)
-        rotation = random.uniform(0, math.pi)
+        start_x = self.center - self.effective_size * random.uniform(0.2, 0.3)
+        start_y = self.center + self.effective_size * random.uniform(0.2, 0.3)
         
-        for i in range(num_points * 2):
-            angle = rotation + (i * math.pi) / num_points
-            radius = outer_radius if i % 2 == 0 else inner_radius
-            x = math.cos(angle) * radius + self.center
-            y = math.sin(angle) * radius + self.center
-            points.append((x, y))
-        return points
-    
-    def _generate_polygon(self) -> List[Tuple[float, float]]:
-        points = []
-        num_sides = random.randint(3, 8)
-        radius = self.effective_size * random.uniform(0.3, 0.45)
-        rotation = random.uniform(0, math.pi * 2)
-        skew = random.uniform(0.8, 1.2)
-        
-        for i in range(num_sides):
-            angle = rotation + (i * 2 * math.pi / num_sides)
-            x = math.cos(angle) * radius * skew + self.center
-            y = math.sin(angle) * radius + self.center
-            points.append((x, y))
-        return points
-    
-    def _generate_spiral(self) -> List[Tuple[float, float]]:
-        points = []
-        num_points = random.randint(12, 20)
-        max_radius = self.effective_size * random.uniform(0.3, 0.45)
-        rotations = random.uniform(1.5, 3.0)
-        
-        for i in range(num_points):
-            angle = (i * 2 * math.pi * rotations) / num_points
-            radius = (i / num_points) * max_radius
-            x = math.cos(angle) * radius + self.center
-            y = math.sin(angle) * radius + self.center
-            points.append((x, y))
-        return points
-    
-    def _generate_cross(self) -> List[Tuple[float, float]]:
-        size = self.effective_size * random.uniform(0.35, 0.45)
-        offset = random.uniform(0.3, 0.7)
-        rotation = random.uniform(0, math.pi / 4)
-        
-        base_points = [
-            (-size, 0), (size, 0),
-            (0, -size), (0, size),
-            (-size * offset, -size * offset),
-            (size * offset, size * offset),
-            (-size * offset, size * offset),
-            (size * offset, -size * offset)
+        # Create main stroke
+        control_points = [
+            (start_x, start_y),
+            (start_x + random.uniform(50, 100), start_y - random.uniform(50, 100)),
+            (start_x + random.uniform(150, 200), start_y - random.uniform(150, 200)),
+            (start_x + random.uniform(250, 300), start_y - random.uniform(50, 100))
         ]
         
-        # Rotate points
-        points = []
-        for x, y in base_points:
-            rx = x * math.cos(rotation) - y * math.sin(rotation)
-            ry = x * math.sin(rotation) + y * math.cos(rotation)
-            points.append((rx + self.center, ry + self.center))
+        # Generate smooth curve through control points
+        for t in range(0, 101, 5):
+            t = t / 100
+            x = sum(p[0] * self._bezier_coeff(i, 3, t) for i, p in enumerate(control_points))
+            y = sum(p[1] * self._bezier_coeff(i, 3, t) for i, p in enumerate(control_points))
+            points.append((x, y))
             
         return points
     
-    def _generate_wave_circle(self) -> List[Tuple[float, float]]:
+    def _bezier_coeff(self, i: int, n: int, t: float) -> float:
+        return math.comb(n, i) * (1 - t)**(n - i) * t**i
+    
+    def _generate_radical(self) -> List[Tuple[float, float]]:
+        """Generate a shape reminiscent of radicals in logographic writing systems."""
         points = []
-        num_points = random.randint(24, 36)
-        base_radius = self.effective_size * random.uniform(0.25, 0.35)
-        wave_amplitude = self.effective_size * random.uniform(0.08, 0.15)
-        wave_frequency = random.randint(3, 7)
-        phase = random.uniform(0, math.pi * 2)
+        num_strokes = random.randint(2, 4)
+        base_x = self.center - self.effective_size * 0.25
+        base_y = self.center + self.effective_size * 0.25
         
-        for i in range(num_points):
-            angle = (i * 2 * math.pi) / num_points
-            radius = base_radius + math.sin(angle * wave_frequency + phase) * wave_amplitude
-            x = math.cos(angle) * radius + self.center
-            y = math.sin(angle) * radius + self.center
-            points.append((x, y))
+        for _ in range(num_strokes):
+            stroke_length = random.uniform(0.3, 0.5) * self.effective_size
+            angle = random.uniform(-math.pi/4, math.pi/4)
+            
+            points.extend([
+                (base_x, base_y),
+                (base_x + math.cos(angle) * stroke_length,
+                 base_y - math.sin(angle) * stroke_length)
+            ])
+            
+            base_x += random.uniform(30, 50)
+            base_y -= random.uniform(20, 40)
+            
         return points
     
-    def _generate_diamond_pattern(self) -> List[Tuple[float, float]]:
+    def _generate_flowing_curve(self) -> List[Tuple[float, float]]:
+        """Generate a flowing, script-like curve."""
         points = []
-        size = self.effective_size * random.uniform(0.3, 0.4)
-        num_points = random.randint(3, 5)
-        rotation = random.uniform(0, math.pi / 4)
+        num_points = random.randint(8, 12)
+        amplitude = self.effective_size * random.uniform(0.1, 0.2)
+        frequency = random.uniform(1, 2)
         
         for i in range(num_points):
-            angle = (i * 2 * math.pi / num_points) + rotation
-            x1 = math.cos(angle) * size
-            y1 = math.sin(angle) * size
-            x2 = math.cos(angle + math.pi/num_points) * (size * 0.5)
-            y2 = math.sin(angle + math.pi/num_points) * (size * 0.5)
-            points.extend([
-                (x1 + self.center, y1 + self.center),
-                (x2 + self.center, y2 + self.center)
-            ])
-        return points
-
-    def _generate_zigzag(self) -> List[Tuple[float, float]]:
-        points = []
-        num_segments = random.randint(6, 10)
-        radius = self.effective_size * random.uniform(0.3, 0.4)
-        height = self.effective_size * random.uniform(0.1, 0.2)
-        rotation = random.uniform(0, math.pi * 2)
-        
-        for i in range(num_segments + 1):
-            angle = rotation + (i * 2 * math.pi / num_segments)
-            r1 = radius - height if i % 2 else radius + height
-            x = math.cos(angle) * r1 + self.center
-            y = math.sin(angle) * r1 + self.center
+            t = i / (num_points - 1)
+            x = self.center - self.effective_size * 0.3 + t * self.effective_size * 0.6
+            y = self.center + amplitude * math.sin(frequency * math.pi * t)
             points.append((x, y))
+        
+        return points
+    
+    def _generate_glyph_structure(self) -> List[Tuple[float, float]]:
+        """Generate a structure similar to complex glyphs."""
+        points = []
+        num_components = random.randint(2, 4)
+        
+        for _ in range(num_components):
+            component_points = []
+            size = self.effective_size * random.uniform(0.15, 0.25)
+            x_offset = random.uniform(-0.2, 0.2) * self.effective_size
+            y_offset = random.uniform(-0.2, 0.2) * self.effective_size
+            
+            for i in range(4):
+                angle = (i * math.pi / 2) + random.uniform(-0.2, 0.2)
+                x = self.center + math.cos(angle) * size + x_offset
+                y = self.center + math.sin(angle) * size + y_offset
+                component_points.append((x, y))
+            
+            points.extend(component_points)
+        
+        return points
+    
+    def _generate_logographic(self) -> List[Tuple[float, float]]:
+        """Generate a pattern similar to logographic characters."""
+        points = []
+        num_strokes = random.randint(3, 5)
+        base_size = self.effective_size * 0.3
+        
+        for _ in range(num_strokes):
+            stroke_type = random.choice(['horizontal', 'vertical', 'diagonal'])
+            x_offset = random.uniform(-0.2, 0.2) * self.effective_size
+            y_offset = random.uniform(-0.2, 0.2) * self.effective_size
+            
+            if stroke_type == 'horizontal':
+                points.extend([
+                    (self.center - base_size/2 + x_offset, self.center + y_offset),
+                    (self.center + base_size/2 + x_offset, self.center + y_offset)
+                ])
+            elif stroke_type == 'vertical':
+                points.extend([
+                    (self.center + x_offset, self.center - base_size/2 + y_offset),
+                    (self.center + x_offset, self.center + base_size/2 + y_offset)
+                ])
+            else:  # diagonal
+                angle = random.uniform(0, math.pi)
+                points.extend([
+                    (self.center - math.cos(angle) * base_size/2 + x_offset,
+                     self.center - math.sin(angle) * base_size/2 + y_offset),
+                    (self.center + math.cos(angle) * base_size/2 + x_offset,
+                     self.center + math.sin(angle) * base_size/2 + y_offset)
+                ])
+        
+        return points
+    
+    def _generate_pictographic(self) -> List[Tuple[float, float]]:
+        """Generate simplified pictographic-like symbols."""
+        points = []
+        num_elements = random.randint(3, 6)
+        radius = self.effective_size * 0.25
+        
+        for i in range(num_elements):
+            angle = (i * 2 * math.pi / num_elements) + random.uniform(-0.2, 0.2)
+            r = radius * random.uniform(0.8, 1.2)
+            x = self.center + math.cos(angle) * r
+            y = self.center + math.sin(angle) * r
+            points.append((x, y))
+            
+            if random.random() < 0.5:  # Add connecting lines
+                x2 = self.center + math.cos(angle + math.pi/num_elements) * r * 0.7
+                y2 = self.center + math.sin(angle + math.pi/num_elements) * r * 0.7
+                points.append((x2, y2))
+        
         return points
 
     def _add_decoration(self, draw: ImageDraw.Draw, points: List[Tuple[float, float]]):
-        """Add decorative elements with more variations."""
-        decoration_types = ['dots', 'lines', 'none', 'circle', 'crosses', 'inner_shape']
-        weights = [2, 2, 1, 2, 1, 2]  # Adjust probability of each type
-        decoration_type = random.choices(decoration_types, weights=weights)[0]
+        """Add script-like decorative elements."""
+        decoration_type = random.choice(['serifs', 'dots', 'strokes', 'none'])
         
-        if decoration_type == 'dots':
-            dot_size = random.randint(4, 7)
-            for point in points:
+        if decoration_type == 'serifs':
+            serif_length = random.randint(5, 15)
+            for point in random.sample(points, len(points)//2):
+                angle = random.uniform(0, math.pi)
+                draw.line([
+                    (point[0] - math.cos(angle) * serif_length,
+                     point[1] - math.sin(angle) * serif_length),
+                    (point[0] + math.cos(angle) * serif_length,
+                     point[1] + math.sin(angle) * serif_length)
+                ], fill='black', width=2)
+                
+        elif decoration_type == 'dots':
+            for point in random.sample(points, len(points)//3):
+                dot_size = random.randint(3, 6)
                 draw.ellipse([
                     (point[0] - dot_size, point[1] - dot_size),
                     (point[0] + dot_size, point[1] + dot_size)
                 ], fill='black')
                 
-        elif decoration_type == 'lines':
-            num_lines = random.randint(3, len(points))
-            selected_points = random.sample(points, num_lines)
-            for point in selected_points:
+        elif decoration_type == 'strokes':
+            stroke_length = random.randint(10, 20)
+            for point in random.sample(points, len(points)//3):
                 draw.line([
-                    (self.center, self.center),
-                    point
+                    point,
+                    (point[0] + random.uniform(-1, 1) * stroke_length,
+                     point[1] + random.uniform(-1, 1) * stroke_length)
                 ], fill='black', width=2)
-                
-        elif decoration_type == 'circle':
-            radius = self.effective_size * random.uniform(0.15, 0.25)
-            draw.ellipse([
-                (self.center - radius, self.center - radius),
-                (self.center + radius, self.center + radius)
-            ], outline='black', width=2)
-            
-        elif decoration_type == 'crosses':
-            size = 8
-            for point in random.sample(points, len(points)//2):
-                draw.line([
-                    (point[0] - size, point[1]),
-                    (point[0] + size, point[1])
-                ], fill='black', width=2)
-                draw.line([
-                    (point[0], point[1] - size),
-                    (point[0], point[1] + size)
-                ], fill='black', width=2)
-                
-        elif decoration_type == 'inner_shape':
-            scale = random.uniform(0.4, 0.6)
-            inner_points = [(
-                (p[0] - self.center) * scale + self.center,
-                (p[1] - self.center) * scale + self.center
-            ) for p in points]
-            for i in range(len(inner_points)):
-                p1 = inner_points[i]
-                p2 = inner_points[(i + 1) % len(inner_points)]
-                draw.line([p1, p2], fill='black', width=2)
 
     def generate_symbol(self) -> Image.Image:
-        """Generate a unique symbol as a PIL Image."""
         max_attempts = 100
         attempts = 0
         
@@ -223,16 +215,13 @@ class SymbolGenerator:
             
             points = self._generate_base_shape()
             
-            # Draw the main shape
-            for i in range(len(points)):
-                p1 = points[i]
-                p2 = points[(i + 1) % len(points)]
-                draw.line([p1, p2], fill='black', width=4)
+            # Draw with varying line width for calligraphic effect
+            for i in range(len(points) - 1):
+                width = random.randint(3, 6)
+                draw.line([points[i], points[i + 1]], fill='black', width=width)
             
-            # Add decorative elements
             self._add_decoration(draw, points)
             
-            # Check if the symbol is unique
             if self._is_unique(image):
                 return image
                 
@@ -241,12 +230,10 @@ class SymbolGenerator:
         raise Exception("Failed to generate a unique symbol after maximum attempts")
     
     def save_symbol(self, filename: str):
-        """Generate and save a unique symbol to a PNG file."""
         image = self.generate_symbol()
         image.save(filename, 'PNG')
 
 def generate_multiple_symbols(num_symbols: int = 28, output_dir: str = "generated_symbols"):
-    """Generate multiple unique symbols and save them as PNGs."""
     os.makedirs(output_dir, exist_ok=True)
     
     generator = SymbolGenerator()
