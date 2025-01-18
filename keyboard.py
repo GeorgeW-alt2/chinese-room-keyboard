@@ -22,10 +22,12 @@ class SymbolKeyboard:
         # Keyboard layout settings
         self.KEY_SIZE = 60
         self.KEY_SPACING = 10
+        self.SPACE_BAR_WIDTH = 300  # Width for space bar
         self.KEY_ROWS = [
             "QWERTYUIOP",
             "ASDFGHJKL",
-            "ZXCVBNM"
+            "ZXCVBNM",
+            " "  # Space bar row
         ]
         
         # Text input area
@@ -67,7 +69,7 @@ class SymbolKeyboard:
         """Create mapping between keyboard keys and symbols."""
         mapping = {}
         symbol_index = 1
-        for row in self.KEY_ROWS:
+        for row in self.KEY_ROWS[:-1]:  # Exclude space bar row from symbol mapping
             for key in row:
                 mapping[key] = symbol_index
                 symbol_index += 1
@@ -78,34 +80,52 @@ class SymbolKeyboard:
         start_y = 400  # Starting Y position for the keyboard
         
         for row_index, row in enumerate(self.KEY_ROWS):
-            # Center each row
-            row_width = len(row) * (self.KEY_SIZE + self.KEY_SPACING)
-            start_x = (self.WINDOW_WIDTH - row_width) // 2
-            
-            for col_index, key in enumerate(row):
-                x = start_x + col_index * (self.KEY_SIZE + self.KEY_SPACING)
+            if row == " ":  # Space bar row
+                # Center the space bar
+                x = (self.WINDOW_WIDTH - self.SPACE_BAR_WIDTH) // 2
                 y = start_y + row_index * (self.KEY_SIZE + self.KEY_SPACING)
                 
-                # Draw key background
-                key_rect = pygame.Rect(x, y, self.KEY_SIZE, self.KEY_SIZE)
-                is_pressed = key in self.pressed_keys
+                # Draw space bar
+                space_rect = pygame.Rect(x, y, self.SPACE_BAR_WIDTH, self.KEY_SIZE)
+                is_pressed = " " in self.pressed_keys
                 color = self.LIGHT_BLUE if is_pressed else self.WHITE
-                pygame.draw.rect(self.screen, color, key_rect)
-                pygame.draw.rect(self.screen, self.BLACK, key_rect, 2)
+                pygame.draw.rect(self.screen, color, space_rect)
+                pygame.draw.rect(self.screen, self.BLACK, space_rect, 2)
                 
-                # Draw symbol
-                symbol_index = self.key_to_symbol[key]
-                if symbol_index in self.symbols:
-                    symbol_surf = self.symbols[symbol_index]
-                    symbol_x = x + (self.KEY_SIZE - symbol_surf.get_width()) // 2
-                    symbol_y = y + (self.KEY_SIZE - symbol_surf.get_height()) // 2
-                    self.screen.blit(symbol_surf, (symbol_x, symbol_y))
+                # Draw "SPACE" text
+                space_text = self.font.render("SPACE", True, self.BLACK)
+                text_x = x + (self.SPACE_BAR_WIDTH - space_text.get_width()) // 2
+                text_y = y + (self.KEY_SIZE - space_text.get_height()) // 2
+                self.screen.blit(space_text, (text_x, text_y))
+            else:
+                # Regular key row
+                row_width = len(row) * (self.KEY_SIZE + self.KEY_SPACING)
+                start_x = (self.WINDOW_WIDTH - row_width) // 2
                 
-                # Draw key letter
-                letter_surf = self.font.render(key, True, self.BLACK)
-                letter_x = x + (self.KEY_SIZE - letter_surf.get_width()) // 2
-                letter_y = y + self.KEY_SIZE - 20
-                self.screen.blit(letter_surf, (letter_x, letter_y))
+                for col_index, key in enumerate(row):
+                    x = start_x + col_index * (self.KEY_SIZE + self.KEY_SPACING)
+                    y = start_y + row_index * (self.KEY_SIZE + self.KEY_SPACING)
+                    
+                    # Draw key background
+                    key_rect = pygame.Rect(x, y, self.KEY_SIZE, self.KEY_SIZE)
+                    is_pressed = key in self.pressed_keys
+                    color = self.LIGHT_BLUE if is_pressed else self.WHITE
+                    pygame.draw.rect(self.screen, color, key_rect)
+                    pygame.draw.rect(self.screen, self.BLACK, key_rect, 2)
+                    
+                    # Draw symbol
+                    symbol_index = self.key_to_symbol.get(key)
+                    if symbol_index in self.symbols:
+                        symbol_surf = self.symbols[symbol_index]
+                        symbol_x = x + (self.KEY_SIZE - symbol_surf.get_width()) // 2
+                        symbol_y = y + (self.KEY_SIZE - symbol_surf.get_height()) // 2
+                        self.screen.blit(symbol_surf, (symbol_x, symbol_y))
+                    
+                    # Draw key letter
+                    letter_surf = self.font.render(key, True, self.BLACK)
+                    letter_x = x + (self.KEY_SIZE - letter_surf.get_width()) // 2
+                    letter_y = y + self.KEY_SIZE - 20
+                    self.screen.blit(letter_surf, (letter_x, letter_y))
                 
     def draw_text_input(self):
         """Draw the text input area with the typed symbols."""
@@ -125,7 +145,9 @@ class SymbolKeyboard:
         for line in wrapped_text:
             x = 60  # Reset x position for each line
             for char in line:
-                if char.upper() in self.key_to_symbol:
+                if char == " ":  # Handle space
+                    x += self.KEY_SIZE // 2
+                elif char.upper() in self.key_to_symbol:
                     symbol_index = self.key_to_symbol[char.upper()]
                     if symbol_index in self.symbols:
                         symbol_surf = self.symbols[symbol_index]
@@ -147,7 +169,10 @@ class SymbolKeyboard:
                     running = False
                     
                 elif event.type == pygame.KEYDOWN:
-                    if event.unicode.upper() in self.key_to_symbol:
+                    if event.key == pygame.K_SPACE:
+                        self.text_input += " "
+                        self.pressed_keys.add(" ")
+                    elif event.unicode.upper() in self.key_to_symbol:
                         self.text_input += event.unicode
                         self.pressed_keys.add(event.unicode.upper())
                     elif event.key == pygame.K_BACKSPACE:
@@ -156,7 +181,9 @@ class SymbolKeyboard:
                         running = False
                         
                 elif event.type == pygame.KEYUP:
-                    if event.unicode.upper() in self.key_to_symbol:
+                    if event.key == pygame.K_SPACE:
+                        self.pressed_keys.remove(" ")
+                    elif event.unicode.upper() in self.key_to_symbol:
                         self.pressed_keys.remove(event.unicode.upper())
             
             # Draw everything
